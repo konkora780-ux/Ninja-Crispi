@@ -8,6 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="クリスピー帳">
 <meta name="theme-color" content="#14100e">
 <title>ニンジャクリスピー レシピ帳</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <style>
 :root{
   --bg:#14100e; --bg2:#1e1917; --card:#241e1b; --line:#3a312d;
@@ -40,10 +43,9 @@ header{
 }
 .brand{display:flex; align-items:center; gap:10px;}
 .brand .mark{
-  width:34px;height:34px;border-radius:9px;flex:none;
-  background:linear-gradient(140deg,var(--red),#8e1f16);
-  display:grid;place-items:center;font-size:19px;
-  box-shadow:0 2px 10px rgba(226,72,58,.35);
+  width:36px;height:36px;border-radius:10px;flex:none;
+  object-fit:cover; background:var(--card);
+  box-shadow:0 2px 10px rgba(0,0,0,.35);
 }
 .brand h1{margin:0; font-size:17px; letter-spacing:.02em;}
 .brand small{display:block; font-size:11px; color:var(--sub); font-weight:400; letter-spacing:.04em;}
@@ -264,7 +266,7 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
 
 <header>
   <div class="brand">
-    <div class="mark">🥷</div>
+    <img class="mark" src="apple-touch-icon.png" alt="">
     <div>
       <h1>ニンジャクリスピー</h1>
       <small>レシピ帳 ｜ FN101J</small>
