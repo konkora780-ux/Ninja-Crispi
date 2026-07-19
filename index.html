@@ -15,6 +15,9 @@
   --gold:#e8b04b; --blue:#5aa9e6;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+  /* タイマーバーの高さ。出ている間だけ JS が実測値を入れる。
+     画面下に固定しているものは、この分だけ上に逃がす */
+  --timerh: 0px;
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0; padding:0;}
@@ -23,7 +26,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
   font-size:16px; line-height:1.6;
   -webkit-text-size-adjust:100%;
-  padding-bottom:calc(96px + var(--safe-b));
+  padding-bottom:calc(96px + var(--safe-b) + var(--timerh));
 }
 button,input,select,textarea{font-family:inherit; font-size:16px;}
 button{cursor:pointer;}
@@ -92,11 +95,17 @@ main{padding:14px;}
 .plate.mid{background:rgba(255,255,255,.09); color:#ded6d0;}
 .empty{text-align:center; color:var(--sub); padding:60px 20px; font-size:14px;}
 
+/* シートは transform でスライドさせている。
+   transform のかかった要素の中では position:fixed が効かず、
+   中身と一緒にスクロールしてしまう（＝下部ボタンが本文に重なる）。
+   そのため中の固定物は position:sticky で作ること。
+   タイマーが出ている間はシートの下端をその分だけ上げ、タイマーと重ならないようにする。 */
 .sheet{
-  position:fixed; inset:0; z-index:50; background:var(--bg);
+  position:fixed; left:0; right:0; top:0; bottom:var(--timerh);
+  z-index:50; background:var(--bg);
   overflow-y:auto; -webkit-overflow-scrolling:touch;
+  display:flex; flex-direction:column;
   transform:translateY(100%); transition:transform .26s cubic-bezier(.3,.8,.4,1);
-  padding-bottom:calc(120px + var(--safe-b));
 }
 .sheet.open{transform:translateY(0);}
 .sheethead{
@@ -105,7 +114,9 @@ main{padding:14px;}
   background:rgba(30,25,23,.95); border-bottom:1px solid var(--line); backdrop-filter:blur(10px);
 }
 .sheethead .t{font-weight:700; font-size:16px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.sheetbody{padding:16px 16px 0;}
+.sheetbody{padding:16px 16px 8px; flex:1 0 auto;}
+/* 下部ボタンのないシートは、自分で安全領域ぶんを空ける */
+#menu .sheetbody, #official .sheetbody{padding-bottom:calc(28px + var(--safe-b));}
 
 .hero{text-align:center; padding:14px 0 18px;}
 .hero .emoji{font-size:64px;}
@@ -149,12 +160,12 @@ main{padding:14px;}
   width:40px;height:40px;border-radius:50%; border:0; background:#fff2; color:#fff; font-size:18px;
 }
 
-.specs{display:grid; grid-template-columns:1fr 1fr 1fr; gap:9px; margin-bottom:12px;}
+.specs{display:grid; grid-template-columns:1.35fr 1fr 1fr; gap:9px; margin-bottom:12px;}
 .spec{background:var(--card); border:1px solid var(--line); border-radius:13px; padding:11px 6px; text-align:center;}
 .spec .l{font-size:10.5px; color:var(--sub); letter-spacing:.08em;}
 .spec .v{font-size:19px; font-weight:700; margin-top:2px;}
 .spec .v small{font-size:11px; font-weight:400; color:var(--sub);}
-.spec.mode .v{font-size:13.5px; color:var(--red2); line-height:1.35;}
+.spec.mode .v{font-size:12.5px; color:var(--red2); line-height:1.35; letter-spacing:-.02em; white-space:nowrap;}
 .spec.pl .v{font-size:15px;}
 .spec.pl.on .v{color:var(--gold);} .spec.pl.off .v{color:var(--blue);} .spec.pl.mid .v{color:#ded6d0; font-size:13.5px;}
 .platenote{
@@ -186,10 +197,12 @@ ol.steps li::before{
 .src{font-size:11px; color:#7d716b; margin-top:14px;}
 
 .actionbar{
-  position:fixed; left:0; right:0; bottom:0; z-index:55;
-  display:flex; gap:10px; padding:12px 14px calc(12px + var(--safe-b));
-  background:linear-gradient(180deg,rgba(20,16,14,0),var(--bg) 32%);
+  position:sticky; bottom:0; z-index:55; margin-top:auto;
+  display:flex; gap:10px; padding:14px 14px calc(12px + var(--safe-b));
+  background:linear-gradient(180deg,rgba(20,16,14,0) 0%,var(--bg) 40%);
 }
+/* タイマーが下にいるときは、そちらが安全領域を持つので二重に空けない */
+body.timing .actionbar{ padding-bottom:12px; }
 .btn{
   flex:1; padding:14px; border-radius:13px; border:1px solid var(--line);
   background:var(--card); color:var(--ink); font-size:15px; font-weight:600;
@@ -229,7 +242,7 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
   color:#fff; border-radius:10px; padding:9px 13px; font-size:13px; font-weight:600;
 }
 .toast{
-  position:fixed; left:50%; bottom:calc(110px + var(--safe-b)); transform:translateX(-50%);
+  position:fixed; left:50%; bottom:calc(110px + var(--safe-b) + var(--timerh)); transform:translateX(-50%);
   background:#000d; border:1px solid var(--line); color:#fff; padding:11px 18px;
   border-radius:999px; font-size:14px; z-index:100; opacity:0; pointer-events:none;
   transition:opacity .2s; white-space:nowrap;
@@ -241,7 +254,7 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
 }
 .banner button{background:none;border:0;color:var(--gold);font-size:17px;padding:0;}
 .fab{
-  position:fixed; right:16px; bottom:calc(18px + var(--safe-b)); z-index:40;
+  position:fixed; right:16px; bottom:calc(18px + var(--safe-b) + var(--timerh)); z-index:40;
   width:58px;height:58px;border-radius:50%; border:0; background:var(--red); color:#fff;
   font-size:30px; box-shadow:0 6px 22px rgba(226,72,58,.45);
 }
@@ -1521,11 +1534,22 @@ document.getElementById('fSave').onclick = ()=>{
 let tEnd=0, tLeft=0, tRun=false, tTick=null, tRing=false;
 const bar = document.getElementById('timerBar');
 
+/* タイマーバーが画面下を占める分を、他の固定要素に伝える。
+   これをしないと、レシピ下部のボタンとタイマーが重なって見えなくなる */
+function syncTimerSpace(){
+  const on = bar.classList.contains('on');
+  document.body.classList.toggle('timing', on);
+  document.documentElement.style.setProperty('--timerh', on ? bar.offsetHeight + 'px' : '0px');
+}
+addEventListener('resize', syncTimerSpace);
+addEventListener('orientationchange', ()=>setTimeout(syncTimerSpace, 200));
+
 function startTimer(sec, name){
   tLeft = sec; tEnd = Date.now()+sec*1000; tRun = true; tRing = false;
   bar.classList.add('on'); bar.classList.remove('ring');
   document.getElementById('tName').textContent = name;
   document.getElementById('tToggle').textContent = '一時停止';
+  syncTimerSpace();
   primeAudio();
   clearInterval(tTick);
   paintTimer();
@@ -1543,6 +1567,7 @@ function ringAlarm(){
   tRing = true; tRun = false;
   bar.classList.add('ring');
   document.getElementById('tName').textContent = 'できあがり！';
+  syncTimerSpace();
   beep(); setTimeout(beep,700); setTimeout(beep,1400);
   if(navigator.vibrate) navigator.vibrate([300,150,300,150,300]);
 }
@@ -1556,6 +1581,7 @@ document.getElementById('tStop').onclick = stopTimer;
 function stopTimer(){
   tRun=false; tRing=false; clearInterval(tTick);
   bar.classList.remove('on','ring');
+  syncTimerSpace();
 }
 
 let ac=null;
