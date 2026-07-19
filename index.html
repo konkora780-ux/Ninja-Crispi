@@ -128,6 +128,16 @@ main{padding:14px;}
   border:1px dashed var(--line); background:var(--bg2); color:var(--sub); margin-bottom:12px;
 }
 .photobtn.has{border-style:solid; padding:11px; font-size:13px;}
+.photobtn.link{border-style:solid; border-color:rgba(232,176,75,.5); color:var(--gold); display:block; text-decoration:none; text-align:center;}
+/* 公式レシピ一覧 */
+.olink{
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:12px 13px; margin-bottom:8px; border-radius:12px;
+  background:var(--card); border:1px solid var(--line); color:var(--ink);
+  font-size:14.5px; text-decoration:none;
+}
+.olink:active{background:#2c2523;}
+.olink .go{margin-left:auto; color:var(--sub); font-size:12px; flex:none;}
 #lightbox{
   position:fixed; inset:0; z-index:90; background:#000e; display:none;
   align-items:center; justify-content:center; padding:12px;
@@ -247,6 +257,7 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
       <small>レシピ帳 ｜ FN101J</small>
     </div>
     <div class="tools">
+      <button class="icobtn" id="btnOfficial" title="公式レシピ（写真つき）">📖</button>
       <button class="icobtn" id="btnFav" title="お気に入りだけ">☆</button>
       <button class="icobtn" id="btnMenu" title="メニュー">⋯</button>
     </div>
@@ -344,7 +355,14 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
 
     <h4 class="sec">できあがりの写真</h4>
     <p style="font-size:13px;color:var(--sub);margin-top:0;line-height:1.85">
-      レシピをひらいて <b style="color:var(--ink)">「📷 できあがりの写真をつける」</b> から、その場で撮るか写真アプリから選べます。
+      上の <b style="color:var(--ink)">📖</b> ボタンから、公式サイトの写真つきレシピ104品をひらけます。
+      アプリの中のレシピにも、同じ料理が公式にあるものは
+      <b style="color:var(--gold)">「📷 公式ページで写真を見る」</b>ボタンが出ます。<br>
+      公式の写真はこのアプリの中には取りこんでいません。他社の写真なので、
+      勝手に配ることはできず、画像のURLもいずれ切れてしまうためです。
+    </p>
+    <p style="font-size:13px;color:var(--sub);line-height:1.85">
+      自分で撮った写真は貼れます。レシピをひらいて <b style="color:var(--ink)">「📷 できあがりの写真をつける」</b> から、その場で撮るか写真アプリから選べます。
       貼った写真は一覧にも小さく出て、レシピ画面でタップすると大きく見られます。<br>
       写真は自動で小さく（長辺900px）してから保存しますが、<b style="color:var(--ink)">入れられるのは20〜30枚くらい</b>が目安です。
       いっぱいになると「保存できません」と出るので、いらない写真を消してください。
@@ -385,6 +403,25 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
   <button id="tStop">やめる</button>
 </div>
 
+<div class="sheet" id="official">
+  <div class="sheethead">
+    <button class="icobtn" onclick="closeSheet('official')">✕</button>
+    <div class="t">公式レシピ（写真つき）</div>
+  </div>
+  <div class="sheetbody">
+    <p style="font-size:12.5px;color:var(--sub);margin-top:0;line-height:1.8">
+      シャークニンジャ日本公式サイトの、Crispi で作れるレシピ <b style="color:var(--ink)" id="oCount"></b> 品です。
+      タップすると公式ページがひらいて、<b style="color:var(--ink)">できあがりの写真</b>と作り方が見られます。
+    </p>
+    <div class="search" style="margin-bottom:12px">
+      <span>🔍</span>
+      <input id="oq" type="search" placeholder="料理名でさがす" autocomplete="off">
+    </div>
+    <div id="oList"></div>
+    <div style="height:24px"></div>
+  </div>
+</div>
+
 <div id="lightbox">
   <button class="close" id="lbClose">✕</button>
   <img id="lbImg" alt="">
@@ -402,7 +439,7 @@ textarea.i{min-height:120px; resize:vertical; line-height:1.7;}
    ========================================================= */
 
 const KEY = 'ninja-crispi-recipes-v1';
-const KEY_SEED = 'ninja-crispi-seeded-v3';
+const KEY_SEED = 'ninja-crispi-seeded-v4';
 
 const CATS  = ['お肉','お魚','野菜','おつまみ','パン・おやつ','冷凍食品','温めなおし','ワンポット','朝ごはん'];
 /* FN101J のモード。マックスクリスプは日本モデルには無い */
@@ -413,6 +450,68 @@ const MODES = {
   '保温'          : {min:20, note:'できた料理をあたたかいまま'}
 };
 const PLATES = ['あり','なし','途中から'];
+
+/* シャークニンジャ日本公式サイトの Crispi 用レシピ（写真つき）。
+   写真は公式ページで見てもらう。他社の写真をこのアプリに埋め込むと
+   著作権の問題があり、画像URLもいずれ切れるため。 */
+const OFFICIAL_BASE = 'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=';
+const OFFICIAL = [
+['シンプル鶏もも焼き','simplebakedchiken&type=643'],['唐揚げ','friedchicken-crispi&type=3930'],
+['グリルハンバーグ','grilledhamburger&type=5970'],['スペアリブ','spareribs&type=3082'],
+['ペッパー手羽先','pepperchickenwings&type=3308'],['手羽元ローストチキン','roastedchickendrumsticks&type=5753'],
+['手羽元焼き カレー風味','tebamotoyakicurryflavor&type=6552'],['手羽中のハニーマスタードチキン','honeymustardchickenwings&type=5774'],
+['丸鶏のローストチキン','wholeroastchicken&type=5785'],['タンドリーチキン','tandoorichickencrispi&type=280'],
+['揚げない油淋鶏','nonfriedyurinchi&type=8663'],['ささみの甘酢照り焼き','chickentenderteriyaki&type=423'],
+['串なし焼鳥ねぎま','skewerlessyakitorinegima&type=5078'],['サーモンバジルロールチキン','salmonbasilrolledchicken&type=2948'],
+['リメイクチキン チーズタッカルビ','cheesedakgalbi&type=3143'],['鶏肉と野菜の甘酢あんかけ','sweetandsourchickenandvegetables&type=8911'],
+['トマトチーズミートボール','tomatoandcheesemeatballs&type=1318'],['ローストポーク','roastpork&type=7561'],
+['ポークソテー（焼き野菜添え）','porksautewithvegetable&type=726'],['豚と白菜の蒸し焼き','steamedporkandchinesecabbage&type=7575'],
+['豚とキャベツの焼きしゃぶ','porkandcabbageshabu-shabu&type=9320'],['豚キムチ','porkkimchicrispi&type=6041'],
+['ラムチョップ','lambchopscrispi&type=1057'],['梅しそロールカツ','plumandshisorollcutlet&type=9832'],
+['カツ煮（リメイク）','remadekatsuni&type=2364'],['肉巻きピーマン','stuffedbellpeppers&type=7707'],
+['厚揚げの豚バラ巻き焼き','deepfriedtofuwrappedinpork&type=3995'],['自家製ベーコン','homemadebacon&type=4695'],
+['自家製ビーフジャーキー','homemadebeefjerky&type=9528'],['キーマカレー','keemacurry&type=8639'],
+['麻婆なす','mapoeggplant&type=8760'],['サーモンのレモンハーブグリル','lemonherbgrilledsalmon&type=9596'],
+['魚介のアクアパッツァ風','seafoodacquapazza&type=4956'],['さば味噌','mackerelmiso&type=5104'],
+['さばの蒲焼き','sabanokabayaki&type=1304'],['ブリの照り焼き','grilledamberjack&type=4873'],
+['アジの南蛮漬け','nanbanzuke&type=7511'],['アジのさんが焼き','ajinosangayaki&type=123'],
+['秋鮭の焼きびたし','autumnsalmon&type=7644'],['鮭ときのこのホイル焼き','mushroomfoilgrilledsalmon&type=8802'],
+['イワシとトマトの香草パン粉焼き','tomatoesandherbsbakedsardines&type=9321'],['ししゃものレモンバターしょうゆ焼き','shisyamolemonbutter&type=331'],
+['かつおのたたき中華風','tunatatakichukafu&type=7963'],['エビチリ','chineseshrimpchili&type=3223'],
+['エスニック海老パン','ethnicshrimpbread&type=2298'],['あさりの酒蒸し','clamsakemushi&type=756'],
+['牡蠣のベーコン巻き','oysterbacon&type=9566'],['シーフードマカロニグラタン','seafoodmacaronicasserole&type=8293'],
+['はんぺんフライ','hanpenfry&type=8717'],['かまぼこ新食感チップス','kamabokochips&type=5331'],
+['ちくわのチーズ入り磯辺揚げ風','chikuwacheeseisobeyaki&type=5544'],['蒸し焼き野菜サラダ','steamedvegetablesalad&type=8149'],
+['お野菜3品：ベーコン巻き・しいたけチーズ・かぼちゃ煮','bacon-shiitakemushrooms-pumpkinstew&type=500'],
+['まるごと焼きなす','wholeroastedeggplant&type=4115'],['かぼちゃのロースト','roastedpumpkin&type=3579'],
+['ベイクドポテト＆ベイクドオニオン','bakedpotatoandonion&type=3817'],['ジャーマンポテト','germanpotato&type=2271'],
+['スペインバル風マッシュルーム','mushroom&type=1485'],['ピーマンのじゃこ炒め','stir-friedbellpepperswithdriedbabysardines&type=8332'],
+['長いものバターじょうゆ焼き','grilledlongvegetableswithbutter&type=6850'],['枝豆のスパイス焼き','spicygrillededamame&type=3251'],
+['ごぼうの竜田揚げ','friedburdockroot&type=8690'],['焼きいも','yakiimo&type=8790'],
+['スイートポテト','sweetpotatoscrispi&type=2510'],['揚げない大学いも','nonfrieddaigakuimo&type=158'],
+['厚揚げ焼き','friedtofucrispi&type=7899'],['厚揚げのはさみ焼き','thickfriedtofusandwich&type=7557'],
+['厚揚げとこんにゃくの田楽風','atsuageandkonnyakudengakustyle&type=7462'],['油揚げでしらすピザ','thinfriedtofupizzawithshirasu&type=695'],
+['納豆クリチの袋焼き','bakednattocreamcheese&type=5859'],['トマトのまるごとミートグラタン','wholetomatomeatgratin&type=1984'],
+['野菜たっぷりキッシュ','vegetablequiche&type=6094'],['スコップコロッケ','shovelcroquette&type=8885'],
+['じゃがいものもちもちチヂミ','mochimochipotatochijimi&type=2617'],['ポテト生地のもちカリピザ','mochikaripizzawithpotatodough&type=3894'],
+['ナチョチーズポテト','cheesedakgalbi-1&type=1054'],['サワークリームオニオンディップ','sourcreamoniondip&type=8272'],
+['ローストスパイスナッツ','roastedspicednuts&type=4875'],['折りたたみタコス','tacos&type=3646'],
+['焼きカレー','bakedcurry&type=6417'],['焼きおにぎり','grilled-onigiri&type=9802'],
+['バターコーンビーフライス','buttercornbeefrice&type=6180'],['そば飯','sobameshi&type=9724'],
+['さくさく天丼','tendon&type=6114'],['カレーパンのチーズ焼き','cheese-toppedcurrybread&type=5497'],
+['市販のサンドイッチでクロックムッシュ','croquemonsieur&type=6760'],['サラダサンドフライ','saladsandfry&type=4098'],
+['クリスピーホットケーキ','crispypancake&type=9130'],['カリッふわっフレンチトースト','frenchtoast&type=9818'],
+['フォカッチャ','focaccia&type=5356'],['かんたんスコーン','scone&type=1002'],
+['ミニチョコクロワッサン','minichocolatecroissants&type=9084'],['アップルパイ','applepie&type=2117'],
+['バスクチーズケーキ','basquecheesecake&type=1089'],['フルーツクラフティー','fruitclafoutis&type=6473'],
+['マドレーヌ','madeleinecrispi&type=5028'],['ジャムクッキー','jamcookies&type=2803'],
+['スノーボールクッキー','snowballcookie&type=1070'],['ココットメープルプリン','cocottemaplepudding&type=5431'],
+['焼きマシュマロチョコバナナ','roastedmarshmallowchocolatebanana&type=3060'],['焼きりんごのバニラアイス添え','bakedapplewithvanillaicecream&type=2973'],
+['おしるこ','sweetredbeansoup&type=8359'],['残ったお餅であられ風','mochiarare&type=7831'],
+['餃子の皮の包み焼き','gyouzanokawanotutumiyaki&type=5449'],['浜松餃子風リクリスプ（温めなおし）','hamamatsugyozarecrisp&type=4908'],
+['豚汁','porksoup&type=2295']
+];
+const officialUrl = q => OFFICIAL_BASE + q;
 const EMOJIS = ['🍗','🍟','🥩','🐟','🥦','🥐','🍞','🥟','🍤','🧀','🥔','🍆','🍄','🥓','🍕','🍰','🌽','🍠','🥚','🍲','🥬','🥕','🍅','🍚','🎃'];
 
 /* ---------- お手本レシピ ----------
@@ -430,7 +529,7 @@ const SEED = [
          'いちど本体を外し、トングで裏返す（皮目が上）',
          'ベイク・ロースト（皮をより香ばしくしたければクリスプ）でさらに10分'],
   memo:'先に皮目を下にして脂を落とすのがコツ。裏返してからカリッとさせます。（シャークニンジャ日本公式レシピ）',
-  src:'シャークニンジャ日本公式 レシピ'},
+  src:'シャークニンジャ日本公式 レシピ', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=simplebakedchiken&type=643'},
 
 { name:'ガーリックパルメザンチキン', emoji:'🍗', cat:'お肉', mode:'クリスプ', min:20, plate:'あり', size:'L', serv:3,
   ing:[['鶏もも肉（またはむね肉）スライス','400g'],['とかしバター','50g'],['にんにく（みじん切り）','3片'],['乾燥パセリ','適量'],['パルメザンチーズ','大さじ4'],['パン粉','大さじ2'],['塩・こしょう','各適量']],
@@ -482,7 +581,7 @@ const SEED = [
          'プレートに皮目を上にして並べる',
          'ベイク・ロースト 20分'],
   memo:'水気をふくのがいちばん大事。脂がプレートの下に落ちてパリッとします。',
-  src:'シャークニンジャ日本公式（手羽先焼き）'},
+  src:'シャークニンジャ日本公式（手羽先焼き）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=pepperchickenwings&type=3308'},
 
 /* ===== お魚 ===== */
 { name:'サーモンのレモンハーブグリル', emoji:'🐟', cat:'お魚', mode:'クリスプ', min:12, plate:'あり', size:'L', serv:2,
@@ -493,7 +592,7 @@ const SEED = [
          'クリスプ 12分',
          'パセリやディルを散らし、そのまま食卓へ'],
   memo:'途中で裏返さないのがコツ。身がくずれず、ドリップはプレートの下に落ちるので生ぐさくなりません。',
-  src:'シャークニンジャ日本公式（井上真里恵先生）'},
+  src:'シャークニンジャ日本公式（井上真里恵先生）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=lemonherbgrilledsalmon&type=9596'},
 
 { name:'真鱈のハリッサグリル', emoji:'🐟', cat:'お魚', mode:'クリスプ', min:8, plate:'あり', size:'L', serv:2,
   ing:[['真鱈の切り身','2切れ'],['ハリッサペースト','小さじ2'],['オリーブオイル','大さじ1/2'],['塩','少々'],['レモン','適量']],
@@ -513,7 +612,7 @@ const SEED = [
          '本体をのせ、ベイク・ロースト 20分',
          '焼いている間にハーブソースの材料を混ぜておく'],
   memo:'蒸し焼きにすることで、野菜の旨みが凝縮します。好きな野菜でどうぞ。',
-  src:'シャークニンジャ日本公式（井上真里恵先生）'},
+  src:'シャークニンジャ日本公式（井上真里恵先生）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=steamedvegetablesalad&type=8149'},
 
 { name:'ローストブロッコリーのシーザー', emoji:'🥦', cat:'野菜', mode:'クリスプ', min:5, plate:'あり', size:'L', serv:2,
   ing:[['ブロッコリー','1株'],['オリーブオイル','大さじ1/2'],['塩・こしょう','各適量'],['シーザードレッシング','適量']],
@@ -585,7 +684,7 @@ const SEED = [
          '生地を流し込み、表面を平らにする',
          'ベイク・ロースト 15分。竹串を刺して生地がついてこなければ完成'],
   memo:'ペーパーがはみ出ていると熱風で本体に巻き込まれます。必ず角を切り落とすこと。ゆるい生地をコンテナに直接流し込むのは禁止です。',
-  src:'シャークニンジャ日本公式（クリスピーホットケーキ）'},
+  src:'シャークニンジャ日本公式（クリスピーホットケーキ）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=crispypancake&type=9130'},
 
 { name:'チーズトースティ（ホットサンド）', emoji:'🍞', cat:'パン・おやつ', mode:'ベイク・ロースト', min:17, plate:'あり', size:'L', serv:1,
   ing:[['パン（サワードゥなど）','2枚'],['とけるチーズ','60g'],['トマトチャツネ（またはケチャップ）','大さじ1'],['バター（室温）','大さじ1/2']],
@@ -594,7 +693,7 @@ const SEED = [
          'プレートにのせる',
          'ベイク・ロースト 17分。途中で1回裏返し、両面がきつね色になるまで焼く'],
   memo:'外側のバターが、熱風でパンが乾きすぎるのを防ぎます。フライパンと違って潰れません。',
-  src:'Ninja Crispi レシピ資料'},
+  src:'Ninja Crispi レシピ資料', link:'https://ninjatestkitchen.eu/recipe/sourdough-cheese-tomato-chutney-toastie/'},
 
 { name:'クイック・シナモンロール', emoji:'🥐', cat:'パン・おやつ', mode:'クリスプ', min:7, plate:'あり', size:'L', serv:2,
   ing:[['市販のシナモンロール生地','4個'],['付属のアイシング','適量']],
@@ -646,7 +745,7 @@ const SEED = [
   ing:[['冷凍餃子','12個'],['ごま油','小さじ1']],
   steps:['凍ったまま、くっつかないようにプレートに並べる','ごま油を薄くぬる','クリスプ 12分'],
   memo:'皮が乾きやすいので油をぬると◎。羽根つきはそのままでOK。',
-  src:'—（一般的な目安）'},
+  src:'—（一般的な目安）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=hamamatsugyozarecrisp&type=4908'},
 
 /* ===== 温めなおし ===== */
 { name:'お惣菜の温めなおし（揚げもの）', emoji:'🍤', cat:'温めなおし', mode:'リクリスプ', min:5, plate:'あり', size:'L', serv:1,
@@ -695,13 +794,13 @@ const SEED = [
   ing:[['さつまいも','中2本']],
   steps:['洗って水気がついたままプレートに並べる','ベイク・ロースト 35分','竹串がすっと通ればできあがり'],
   memo:'太いものは半分に切ると早い。時間はかかるけど甘くなります。',
-  src:'—（一般的な目安）'},
+  src:'—（一般的な目安）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=yakiimo&type=8790'},
 
 { name:'厚揚げのカリカリ', emoji:'🧀', cat:'野菜', mode:'クリスプ', min:10, plate:'あり', size:'L / S', serv:2,
   ing:[['厚揚げ','2枚'],['しょうゆ','適量'],['かつお節','適量']],
   steps:['厚揚げを食べやすく切り、プレートに並べる','クリスプ 10分','しょうゆとかつお節をかける'],
   memo:'油はひかなくてOK。',
-  src:'—（一般的な目安）'},
+  src:'—（一般的な目安）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=friedtofucrispi&type=7899'},
 
 { name:'鶏のから揚げ風', emoji:'🍗', cat:'お肉', mode:'クリスプ', min:18, plate:'あり', size:'L', serv:2,
   ing:[['鶏もも肉','300g'],['しょうゆ','大さじ1.5'],['酒','大さじ1'],['おろしにんにく','少々'],['おろししょうが','少々'],['片栗粉','大さじ3'],['サラダ油','小さじ1']],
@@ -711,7 +810,7 @@ const SEED = [
          'プレートに重ならないように並べる',
          'クリスプ 18分。途中10分でいちど返す'],
   memo:'衣に油をからめるとしっかり色づきます。入れすぎると蒸れるので、多いときは2回に分けて。',
-  src:'—（一般的な目安）'},
+  src:'—（一般的な目安）', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=friedchicken-crispi&type=3930'},
 
 /* ============================================================
    ここから：Ninja 公式 クイックスタートガイド掲載のレシピ／加熱チャート
@@ -737,7 +836,7 @@ const SEED = [
          '残り15分と残り5分でも、もういちどずつ全体を返す',
          '焼けたらボウルに移し、照り焼きのタレをからめる。小ねぎを散らす'],
   memo:'タレは焼いたあとにからめる。先に塗ると焦げます。',
-  src:'Ninja 公式 クイックスタートガイド'},
+  src:'Ninja 公式 クイックスタートガイド', link:'https://ninjatestkitchen.eu/recipe/teriyaki-glazed-wings/'},
 
 { name:'ナチョス', emoji:'🧀', cat:'おつまみ', mode:'クリスプ', min:8, plate:'なし', size:'L', serv:4,
   ing:[['トルティーヤチップス','2カップ'],['とけるチェダーチーズ','1カップ'],['ミックスビーンズ（水煮）','80g'],['ハラペーニョ（酢漬け・刻む）','大さじ4'],['サワークリーム・サルサ・パクチー','お好みで']],
@@ -780,7 +879,7 @@ const SEED = [
   ing:[['冷凍ココナッツシュリンプ（衣つき）','450g'],['スイートチリソース','適量']],
   steps:['プレートに凍ったまま並べる','クリスプ 15分','7分たったら全体を混ぜる','残り3分でもういちど混ぜる','スイートチリソースを添える'],
   memo:'',
-  src:'Ninja 公式 クイックスタートガイド'},
+  src:'Ninja 公式 クイックスタートガイド', link:'https://ninjatestkitchen.eu/recipe/coconut-prawns/'},
 
 { name:'いんげんのガーリック炒め風', emoji:'🥬', cat:'野菜', mode:'クリスプ', min:15, plate:'あり', size:'L', serv:4,
   ing:[['いんげん（両端を切る）','450g'],['オリーブオイル','大さじ1'],['にんにく（みじん切り）','2片'],['塩・黒こしょう','各適量']],
@@ -812,7 +911,7 @@ const SEED = [
          '残り5分でグレーズの半分を表面にぬる',
          '中心温度68℃以上になれば完成。足りなければ5分足す。5分やすませてから切り、残りのグレーズを添える'],
   memo:'',
-  src:'Ninja 公式 クイックスタートガイド'},
+  src:'Ninja 公式 クイックスタートガイド', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=grilledhamburger&type=5970'},
 
 { name:'フィリー・チーズステーキ', emoji:'🥩', cat:'お肉', mode:'クリスプ', min:30, plate:'なし', size:'L', serv:4,
   ing:[['牛サーロイン（薄切り）','900g'],['パプリカ（薄切り）','2個'],['玉ねぎ（薄切り）','1個'],['オリーブオイル','大さじ2'],['スライスチーズ','5枚'],['サブロール（トーストする）','4個'],['塩・黒こしょう','各適量']],
@@ -931,7 +1030,7 @@ const SEED = [
          '4分たったらそっと返す',
          '粉砂糖と水を混ぜたアイシングをかける'],
   memo:'',
-  src:'Ninja 公式 クイックスタートガイド'},
+  src:'Ninja 公式 クイックスタートガイド', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=applepie&type=2117'},
 
 /* ===== 公式 加熱チャート（基本の食材） ===== */
 { name:'鶏むね肉（丸ごと）', emoji:'🍗', cat:'お肉', mode:'クリスプ', min:17, plate:'あり', size:'S', serv:1,
@@ -944,7 +1043,7 @@ const SEED = [
   ing:[['鶏の骨つきもも肉','4本（450g）'],['塩・こしょう','各適量']],
   steps:['塩こしょうしてプレートに並べる','クリスプ 12〜15分'],
   memo:'返さなくてOK。油もいりません。',
-  src:'Ninja 公式 加熱チャート'},
+  src:'Ninja 公式 加熱チャート', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=roastedchickendrumsticks&type=5753'},
 
 { name:'ハンバーグパティ', emoji:'🥩', cat:'お肉', mode:'クリスプ', min:12, plate:'あり', size:'L', serv:2,
   ing:[['ハンバーグパティ（厚さ2.5cm）','2枚'],['塩・こしょう','各適量']],
@@ -992,7 +1091,7 @@ const SEED = [
   ing:[['マッシュルーム','230g'],['油','大さじ1'],['塩','適量']],
   steps:['洗って4等分に切る','油と塩をからめてプレートに広げる','クリスプ 10〜15分'],
   memo:'返さなくてOK。',
-  src:'Ninja 公式 加熱チャート'},
+  src:'Ninja 公式 加熱チャート', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=mushroom&type=1485'},
 
 { name:'ケールチップス', emoji:'🥬', cat:'おつまみ', mode:'クリスプ', min:12, plate:'あり', size:'L', serv:2,
   ing:[['ケール（軸を取ってちぎる）','3カップ'],['塩','適量']],
@@ -1004,13 +1103,13 @@ const SEED = [
   ing:[['かぼちゃ（バターナッツなど）','600g'],['油','大さじ1'],['塩','適量']],
   steps:['3〜5cmの角切りにする','油と塩をからめてプレートに広げる','クリスプ 25〜30分','半分の時間で全体を混ぜる'],
   memo:'',
-  src:'Ninja 公式 加熱チャート'},
+  src:'Ninja 公式 加熱チャート', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=roastedpumpkin&type=3579'},
 
 { name:'さつまいもの角切りロースト', emoji:'🍠', cat:'野菜', mode:'クリスプ', min:22, plate:'あり', size:'L', serv:3,
   ing:[['さつまいも','450g'],['油','大さじ1'],['塩','適量']],
   steps:['1.5cm角に切る','油と塩をからめてプレートに広げる','クリスプ 20〜25分','半分の時間で全体を混ぜる'],
   memo:'丸ごと焼く「焼きいも風」より早くできます。',
-  src:'Ninja 公式 加熱チャート'},
+  src:'Ninja 公式 加熱チャート', link:'https://www.sharkninja.jp/pages/recipe-detail?product=Crispi&recipe=sweetpotatoscrispi&type=2510'},
 
 { name:'冷凍スイートポテトフライ', emoji:'🍠', cat:'冷凍食品', mode:'クリスプ', min:13, plate:'あり', size:'S', serv:2,
   ing:[['冷凍スイートポテトフライ','230g'],['塩','少々']],
@@ -1072,7 +1171,7 @@ function seed(){
       id:'seed2-'+i+'-'+now, name:r.name, emoji:r.emoji, cat:r.cat,
       mode:r.mode, min:r.min, plate:r.plate, size:r.size, serv:r.serv,
       ing:r.ing.map(x=>({n:x[0], a:x[1]})),
-      steps:r.steps, memo:r.memo, src:r.src, fav:false, seed:true
+      steps:r.steps, memo:r.memo, src:r.src, link:r.link||'', fav:false, seed:true
     });
   });
   localStorage.setItem(KEY_SEED,'1');
@@ -1254,6 +1353,7 @@ function drawDetail(){
       ${photo ? '📷 写真をとりかえる' : '📷 できあがりの写真をつける'}
     </button>
     ${photo ? '<button class="photobtn has" id="dPhotoDel" style="color:var(--red2);margin-top:-6px">🗑 写真を消す</button>' : ''}
+    ${r.link ? `<a class="photobtn link" href="${esc(r.link)}" target="_blank" rel="noopener noreferrer">📷 公式ページで写真を見る</a>` : ''}
     <div class="specs">
       <div class="spec mode"><div class="l">モード</div><div class="v">${esc(r.mode)}</div></div>
       <div class="spec"><div class="l">じかん</div><div class="v">${r.min}<small>分</small></div></div>
@@ -1402,6 +1502,7 @@ document.getElementById('fSave').onclick = ()=>{
     steps: document.getElementById('fStep').value.split('\n').map(s=>s.trim()).filter(Boolean),
     memo: document.getElementById('fMemo').value.trim(),
     src:  old? old.src : '',
+    link: old? (old.link||'') : '',
     fav:  old? old.fav : false,
     seed: old? old.seed : false
   };
@@ -1545,6 +1646,23 @@ document.getElementById('btnFav').onclick = function(){
   this.style.color = favOnly?'var(--gold)':'';
   renderList();
 };
+/* ---------- 公式レシピ一覧 ---------- */
+function renderOfficial(){
+  const kw = document.getElementById('oq').value.trim().toLowerCase();
+  const hits = OFFICIAL.filter(o=>!kw || o[0].toLowerCase().includes(kw));
+  document.getElementById('oCount').textContent = OFFICIAL.length;
+  document.getElementById('oList').innerHTML = hits.length
+    ? hits.map(o=>`<a class="olink" href="${officialUrl(o[1])}" target="_blank" rel="noopener noreferrer">
+         <span>📷</span><span>${esc(o[0])}</span><span class="go">ひらく ›</span></a>`).join('')
+    : '<div class="empty">みつかりませんでした</div>';
+}
+document.getElementById('oq').oninput = renderOfficial;
+document.getElementById('btnOfficial').onclick = ()=>{
+  renderOfficial();
+  document.getElementById('official').scrollTop = 0;
+  openSheet('official');
+};
+
 document.getElementById('btnMenu').onclick = ()=>openSheet('menu');
 document.getElementById('btnAdd').onclick  = ()=>openForm(null);
 
