@@ -36,6 +36,17 @@
   （id `2a5bc6ca-8ac6-465a-8ae1-09ee59f389b6`、ソース31件）。
   追加ネタは `nlm query notebook <id> "..."` で引ける（nlm は `C:\Users\konko\nlm-venv\Scripts\nlm.exe`）
 
+## できあがり写真
+
+- 写真は**レシピ本体とは別のキー** `ninja-crispi-photo-<レシピid>` に1枚ずつ保存する。
+  レシピ本体の JSON に入れると、写真1枚で容量オーバーしたときにレシピ全体が保存できなくなるため
+- 保存前に `shrinkImage()` で**長辺900pxのJPEG**へ縮小（品質0.72、420KB超ならさらに0.55）。
+  2400x1600の写真で 138KB → 13KB
+- 一覧を描くたびに localStorage を読まないよう `photoCache`（Map）を挟んでいる。
+  `setPhoto` / `removePhoto` は必ずキャッシュも更新すること
+- 書き出し（export）時だけ `photo` プロパティとして合流させ、読み込み時に別キーへ戻す
+- localStorage 全体で5MBほどなので、写真は20〜30枚が上限の目安
+
 ## 実装で気をつけている点
 
 - `scaleAmount()`：分量の人数倍。日本語の分量は「大さじ1.5」「小さじ1/2」のように**数字が先頭に来ない**ので、
