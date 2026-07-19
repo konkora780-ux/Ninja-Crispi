@@ -47,6 +47,19 @@
 - 書き出し（export）時だけ `photo` プロパティとして合流させ、読み込み時に別キーへ戻す
 - localStorage 全体で5MBほどなので、写真は20〜30枚が上限の目安
 
+## 公式レシピへのリンク（写真）
+
+- **他社の写真はこのアプリに埋め込まない。** 公開URLで再配信することになり著作権上まずい。
+  参照元（NotebookLM の googleusercontent など）の画像URLも一時的で切れる
+- 代わりに**公式ページへのリンク**を持たせている。写真は公式の場所で見てもらう
+- `OFFICIAL` 配列＝シャークニンジャ日本公式の Crispi 用レシピ106品（`[表示名, 'slug&type=NNNN']`）。
+  ヘッダーの 📖 ボタンで一覧＋検索。URLは `OFFICIAL_BASE + slug&type`
+  - 一覧の出どころ： https://www.sharkninja.jp/pages/ninjarecipes/?product=Crispi
+    （**JSで描画されるので curl では3件しか取れない**。ブラウザで開いて
+    `a[href*="recipe-detail"]` を拾うこと）
+- レシピ側の `link` プロパティ … 同じ料理が公式にある18品に設定ずみ。詳細画面にボタンが出る。
+  リンクは必ず `target="_blank" rel="noopener noreferrer"`
+
 ## 実装で気をつけている点
 
 - `scaleAmount()`：分量の人数倍。日本語の分量は「大さじ1.5」「小さじ1/2」のように**数字が先頭に来ない**ので、
